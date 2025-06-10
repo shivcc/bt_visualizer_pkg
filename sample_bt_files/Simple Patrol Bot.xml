@@ -1,0 +1,16 @@
+<!-- patrol_bot.xml -->
+<!-- A simple behavior where a robot continuously patrols between four waypoints. -->
+<root BTCPP_format="4">
+    <BehaviorTree ID="PatrolBot">
+        <Sequence name="PatrolLoop">
+            <Action ID="MoveTo" goal="waypoint_1" />
+            <Action ID="Wait" msec="1000" />
+            <Action ID="MoveTo" goal="waypoint_2" />
+            <Action ID="Wait" msec="1000" />
+            <Action ID="MoveTo" goal="waypoint_3" />
+            <Action ID="Wait" msec="1000" />
+            <Action ID="MoveTo" goal="waypoint_4" />
+            <Action ID="Wait" msec="1000" />
+        </Sequence>
+    </BehaviorTree>
+</root>

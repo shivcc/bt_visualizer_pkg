@@ -1,0 +1,16 @@
+<!-- fetch_bot.xml -->
+<!-- A behavior for a robot that finds an object, picks it up, and carries it to a destination. -->
+<root BTCPP_format="4">
+    <BehaviorTree ID="FetchBot">
+        <Fallback name="FetchObject">
+            <Condition ID="IsHoldingObject" />
+            <Sequence name="RetrieveSequence">
+                <Action ID="FindObject" object_type="cup" />
+                <Action ID="MoveTo" goal="{object_location}" />
+                <Action ID="PickUp" object="{object_location}" />
+            </Sequence>
+        </Fallback>
+        <Action ID="MoveTo" goal="home_base" />
+        <Action ID="PlaceObject" />
+    </BehaviorTree>
+</root>

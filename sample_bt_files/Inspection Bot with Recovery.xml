@@ -1,0 +1,23 @@
+<!-- inspection_bot.xml -->
+<!-- A more complex inspection task with a recovery fallback for navigation failures. -->
+<root BTCPP_format="4">
+    <BehaviorTree ID="InspectionBot">
+        <Sequence name="InspectionMission">
+            <Action ID="GetInspectionPath" path="{mission_path}" />
+            <Fallback name="NavigateAndRecover">
+                <Action ID="FollowPath" path="{mission_path}" />
+                <Sequence name="RecoverySequence">
+                    <Action ID="LogMessage" message="Navigation failed. Attempting recovery." />
+                    <Action ID="ClearCostmap" />
+                    <Action ID="Wait" msec="2000" />
+                    <Action ID="LogMessage" message="Retrying path following." />
+                    <Action ID="FollowPath" path="{mission_path}" />
+                </Sequence>
+            </Fallback>
+            <Decorator ID="RetryUntilSuccessful" num_attempts="3">
+                 <Action ID="TakePictures" />
+            </Decorator>
+            <Action ID="ReturnToBase" />
+        </Sequence>
+    </BehaviorTree>
+</root>
