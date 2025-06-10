@@ -2,7 +2,7 @@
 A simple and intuitive graphical tool to visualize BehaviorTree XML files, designed for ROS 2 (Jazzy Jellyfish). This tool helps developers and roboticists quickly understand, debug, and present robot behavior patterns by rendering them as a clear and interactive tree diagram.
 
 
-(This is a sample screenshot. Feel free to replace it with your own!)
+![demo](https://github.com/shivcc/bt_visualizer_pkg/blob/9b03d3dbff00c8b9eef7c6653d03d6efd20a0b5f/resource/bt_demo.gif)
 
 ## Features
 Load from XML: Directly load and parse BehaviorTree.CPP v4 format .xml files.
