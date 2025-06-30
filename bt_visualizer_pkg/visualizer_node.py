@@ -231,7 +231,6 @@ class BTRenderer(tk.Canvas):
         min_x, max_x = float('inf'), float('-inf')
         min_y, max_y = float('inf'), float('-inf')
 
-        # Use a queue for a breadth-first search to traverse all nodes
         q = [self.tree]
         processed_nodes = {id(self.tree)}
         
@@ -309,23 +308,18 @@ class BTRenderer(tk.Canvas):
         new_scale = self.scale_factor * factor
         if not (0.2 < new_scale < 5.0): return
         
-        # Get canvas coordinates of the mouse cursor BEFORE scaling
         x = self.canvasx(event.x)
         y = self.canvasy(event.y)
 
-        # Scale all items around the canvas origin (0,0) first
         self.scale("all", 0, 0, factor, factor)
 
-        # Calculate the translation required to bring the zoomed point back under the mouse
         delta_x = x - (x * factor)
         delta_y = y - (y * factor)
 
-        # Move all items to achieve the zoom-to-mouse effect
         self.move("all", delta_x, delta_y)
         
         self.scale_factor = new_scale
         
-        # Dynamically update font size
         new_font_size = max(1, int(self.base_font_size * self.scale_factor))
         self.canvas_font.config(size=new_font_size)
         self.update_scroll_region()
@@ -338,10 +332,10 @@ class BTVisualizerApp(tk.Tk):
         self.title("ROS 2 Behavior Tree Visualizer")
         self.geometry("1200x800")
         self.bt_root = None
+        self.current_file_path = None
         self.theme_name = tk.StringVar(value="Dark")
         self.current_theme = THEMES[self.theme_name.get()]
 
-        # For manual panning
         self._pan_start_x = 0
         self._pan_start_y = 0
 
@@ -353,21 +347,30 @@ class BTVisualizerApp(tk.Tk):
         top_bar = ttk.Frame(main_frame)
         top_bar.grid(row=0, column=0, columnspan=2, sticky="ew", pady=5, padx=5)
 
-        load_button = ttk.Button(top_bar, text="Load XML", command=self.load_xml)
+        # --- Left-aligned buttons ---
+        load_button = ttk.Button(top_bar, text="Load XML", command=self.prompt_load_xml)
         load_button.pack(side=tk.LEFT, padx=(10,5), pady=10)
+
+        refresh_button = ttk.Button(top_bar, text="Refresh", command=self.refresh_xml)
+        refresh_button.pack(side=tk.LEFT, padx=5, pady=10)
 
         save_button = ttk.Button(top_bar, text="Save as Image", command=self.save_as_image)
         save_button.pack(side=tk.LEFT, padx=5, pady=10)
         
         theme_label = ttk.Label(top_bar, text="Theme:")
-        theme_label.pack(side=tk.LEFT, padx=(10, 5), pady=10)
+        theme_label.pack(side=tk.LEFT, padx=(20, 5), pady=10)
 
         theme_selector = ttk.Combobox(top_bar, textvariable=self.theme_name, values=list(THEMES.keys()), state="readonly", width=10)
         theme_selector.pack(side=tk.LEFT, pady=10)
         theme_selector.bind("<<ComboboxSelected>>", self.change_theme)
         
+        # --- Right-aligned info button ---
+        info_button = ttk.Button(top_bar, text=" i ", command=self.show_info_dialog, width=3)
+        info_button.pack(side=tk.RIGHT, padx=10, pady=10)
+
+        # --- Center-aligned info label ---
         self.info_label = ttk.Label(top_bar, text="No file loaded.")
-        self.info_label.pack(side=tk.LEFT, padx=20)
+        self.info_label.pack(side=tk.LEFT, padx=20, fill=tk.X, expand=True)
         
         canvas_frame = ttk.Frame(main_frame)
         canvas_frame.grid(row=1, column=0, sticky="nsew")
@@ -384,38 +387,75 @@ class BTVisualizerApp(tk.Tk):
 
         self.canvas.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
         
-        # Bind new pan methods
         self.canvas.bind("<ButtonPress-1>", self.on_pan_start)
         self.canvas.bind("<B1-Motion>", self.on_pan_move)
         self.canvas.bind("<ButtonPress-2>", self.on_pan_start)
         self.canvas.bind("<B2-Motion>", self.on_pan_move)
-
-        # Zoom bindings
         self.canvas.bind("<Control-MouseWheel>", self.canvas._on_zoom)
         self.canvas.bind("<Command-MouseWheel>", self.canvas._on_zoom)
         self.canvas.bind("<Control-Button-4>", self.canvas._on_zoom)
         self.canvas.bind("<Control-Button-5>", self.canvas._on_zoom)
         self.canvas.bind("<Configure>", lambda e: self.canvas.draw_tree(self.bt_root))
 
+    def show_info_dialog(self):
+        """Displays a new window with information about the tool."""
+        info_win = tk.Toplevel(self)
+        info_win.title("Information")
+        info_win.geometry("480x420")
+        info_win.resizable(False, False)
+
+        main_frame = ttk.Frame(info_win, padding="15")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # --- Summary ---
+        summary_text = "A graphical tool to visualize ROS 2 Behavior Trees from XML files."
+        summary_label = ttk.Label(main_frame, text=summary_text, wraplength=450, justify=tk.CENTER, font=("Helvetica", 11, "italic"))
+        summary_label.pack(pady=(0, 15), anchor="w")
+
+        # --- Controls ---
+        controls_frame = ttk.LabelFrame(main_frame, text="Controls", padding="10")
+        controls_frame.pack(fill=tk.X, pady=5)
+        
+        controls_text = (
+            "Pan Canvas:      Hold & Drag Left or Middle Mouse Button\n"
+            "Zoom Canvas:  Ctrl + Mouse Scroll Wheel (centers on cursor)"
+        )
+        controls_label = ttk.Label(controls_frame, text=controls_text, justify=tk.LEFT)
+        controls_label.pack(anchor="w")
+
+        # --- Color Schema ---
+        schema_frame = ttk.LabelFrame(main_frame, text="Color Schema", padding="10")
+        schema_frame.pack(fill=tk.X, pady=5)
+        
+        def create_schema_entry(parent, color, name, description):
+            entry_frame = ttk.Frame(parent)
+            color_box = tk.Frame(entry_frame, bg=color, width=20, height=20, relief="solid", borderwidth=1)
+            color_box.pack(side=tk.LEFT, padx=(0, 10), pady=2)
+            label_text = f"{name:<12} {description}"
+            label = ttk.Label(entry_frame, text=label_text, justify=tk.LEFT)
+            label.pack(side=tk.LEFT, anchor="w", fill=tk.X)
+            entry_frame.pack(fill=tk.X, pady=2)
+
+        theme = self.current_theme
+        create_schema_entry(schema_frame, theme["Control"], "Control", "Directs logic flow (e.g., Sequence, Fallback).")
+        create_schema_entry(schema_frame, theme["Action"], "Action", "Performs a task (e.g., MoveTo, Wait).")
+        create_schema_entry(schema_frame, theme["Condition"], "Condition", "Checks a state (e.g., IsBatteryLow).")
+        create_schema_entry(schema_frame, theme["SubTree"], "SubTree", "Executes a nested Behavior Tree.")
+        create_schema_entry(schema_frame, theme["Decorator"], "Decorator", "Modifies its child's result (e.g., Inverter).")
+        create_schema_entry(schema_frame, theme["Unknown"], "Unknown", "A custom or unrecognized node type.")
+        
+        info_win.transient(self)
+        info_win.grab_set()
+        self.wait_window(info_win)
+
     def change_theme(self, event=None):
         """Applies the selected theme to the application."""
         self.current_theme = THEMES[self.theme_name.get()]
         self.canvas.set_theme(self.current_theme)
-        self.canvas.draw_tree(self.bt_root) # Redraw with new theme
+        self.canvas.draw_tree(self.bt_root)
 
-    def on_pan_start(self, event):
-        """Records the starting position for a canvas pan."""
-        self._pan_start_x = event.x
-        self._pan_start_y = event.y
-
-    def on_pan_move(self, event):
-        """Moves the canvas content based on mouse drag."""
-        dx = event.x - self._pan_start_x
-        dy = event.y - self._pan_start_y
-        self.canvas.move("all", dx, dy)
-        # Update the start position for the next move event
-        self._pan_start_x = event.x
-        self._pan_start_y = event.y
+    def on_pan_start(self, event): self.canvas.scan_mark(event.x, event.y)
+    def on_pan_move(self, event): self.canvas.scan_dragto(event.x, event.y, gain=1)
 
     def save_as_image(self):
         """Saves the current tree as a high-resolution PNG."""
@@ -465,19 +505,32 @@ class BTVisualizerApp(tk.Tk):
             messagebox.showerror("Error", f"Failed to save image: {e}")
             self.ros2_node.get_logger().error(f"Failed to save image: {e}")
 
-    def load_xml(self):
+    def prompt_load_xml(self):
         """Opens a file dialog to select and parse an XML file."""
         file_path = filedialog.askopenfilename(title="Select BehaviorTree XML", filetypes=(("XML files", "*.xml"),))
-        if not file_path: return
+        if file_path:
+            self.load_xml(file_path)
+    
+    def refresh_xml(self):
+        """Reloads the current XML file."""
+        if self.current_file_path:
+            self.load_xml(self.current_file_path)
+            self.info_label.config(text=f"Refreshed: {self.current_file_path.split('/')[-1]}")
+        else:
+            messagebox.showinfo("Info", "No file is currently open to refresh.")
 
+    def load_xml(self, file_path):
+        """Loads and renders an XML file from a given path."""
         try:
             root_element = ET.parse(file_path).getroot()
             if root_element.tag != 'root' or 'BTCPP_format' not in root_element.attrib:
                  self.info_label.config(text="Error: Not a valid BT.CPP XML.")
                  self.ros2_node.get_logger().error("Not a valid BT.CPP V4 XML file.")
                  self.bt_root = None
+                 self.current_file_path = None
             else:
                 self.bt_root = BehaviorTreeNode(root_element)
+                self.current_file_path = file_path # Store the path on successful load
             
             self.canvas.draw_tree(self.bt_root)
             if self.bt_root:
