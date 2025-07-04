@@ -19,7 +19,27 @@ High-Quality Image Export: Save the current tree view as a high-resolution (300 
 
 Intelligent Layout: An automatic layout algorithm prevents node overlaps, even in complex trees.
 
-Color-Coded Nodes: Nodes are colored by their type (Control, Action, Condition, etc.) for at-a-glance identification.
+Color-Coded Nodes: Nodes are colored by their type (Control, Action, Condition, etc.) for at-a-glance identification. Their definitions are as follows
+
+🟡 Control Nodes (Amber/Yellow): Nodes that direct and controls the execution of child nodes. These are akin to if-else statements, for loops, or switches in traditional programming.
+
+Examples: Sequence, Fallback (also called a Selector), Parallel.
+
+🟢 Action Nodes (Green): These are the "workhorses" of the tree. They perform an actual task or action and can take time to execute (i.e., they can return RUNNING).
+
+Examples: MoveTo, PickUpObject, Wait, CalculatePath.
+
+🔵 Condition Nodes (Blue): These are simple "checkers." They ask a question about the state of the robot or the world and immediately return SUCCESS or FAILURE. They never return RUNNING.
+
+Examples: IsBatteryLow, IsObjectInGripper, HasPathBeenCalculated.
+
+🟣 SubTree Nodes (Purple): A SubTree node represents an entire, separate Behavior Tree that is being included and executed at that point. They are useful for creating modular and reusable behaviors and is crucial for building complex behaviors without making one giant, unreadable tree.
+
+🟠 Decorator Nodes (Orange): These are special nodes that have only one child. Their purpose is to modify or "decorate" the result of the child they wrap.
+
+Examples: Inverter (flips SUCCESS to FAILURE and vice-versa), RetryUntilSuccessful (retries its child a number of times), Timeout (makes its child fail if it runs for too long).
+
+⚫ Unknown Nodes (Grey): This is a fallback color. It's used for any node tag in the XML that doesn't match the patterns for the other types. This often happens with custom-named nodes.
 
 ## Installation
 ### 1. Dependencies
